@@ -1,0 +1,54 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build and Distribution Outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+.turbo/
+.cache/
+
+# Environment and Secrets
+.env
+.env*.local
+.env.production
+.env.development
+.env.test
+.env*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE & Editor Directories
+.idea/
+.vscode/
+.agents/
+*.swp
+*.swo
+*~
+
+# DevOps & Worktrees
+.worktrees/
+.handoffs/
+
+# Testing & Cloud Deployments
+coverage/
+.nyc_output/
+.playwright/
+.vercel
