@@ -3,7 +3,10 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles, Sun, Moon } from 'lucide-react';
 import { BlendingBoard } from '@/components/board/BlendingBoard';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserNav } from '@/components/UserNav';
 import { CURRICULUM_PRESETS } from '@/data/presets';
+
+export const dynamic = 'force-dynamic';
 
 interface BoardPageProps {
   searchParams?: Promise<{
@@ -49,6 +52,7 @@ export default async function BoardPage(props: BoardPageProps) {
             All Decks
           </Link>
           <ThemeToggle />
+          <UserNav />
         </div>
       </header>
 

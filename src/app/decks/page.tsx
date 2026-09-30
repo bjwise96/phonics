@@ -1,23 +1,32 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Play, Layers, Sparkles } from 'lucide-react';
+import { ArrowLeft, Play, Layers, Sparkles, Copy, FolderHeart } from 'lucide-react';
 import { CURRICULUM_PRESETS } from '@/data/presets';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { UserNav } from '@/components/UserNav';
+import { getUserDecks } from '@/lib/actions/decks';
 
-export default function DecksPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function DecksPage() {
+  const userDecks = await getUserDecks();
+
   const threeCol = CURRICULUM_PRESETS.filter((d) => d.category === '3-column');
   const fourCol = CURRICULUM_PRESETS.filter((d) => d.category === '4-column');
   const fiveCol = CURRICULUM_PRESETS.filter((d) => d.category === '5-column');
 
-  const renderSection = (title: string, subtitle: string, decks: typeof CURRICULUM_PRESETS) => (
+  const renderSection = (title: string, subtitle: string, decks: typeof CURRICULUM_PRESETS, isUser = false) => (
     <section className="mb-12">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          {title}
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {subtitle}
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            {isUser && <FolderHeart className="w-6 h-6 text-pink-500" />}
+            {title}
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {subtitle}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -78,13 +87,15 @@ export default function DecksPage() {
               )}
             </div>
 
-            <Link
-              href={`/board?deck=${deck.id}`}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-95"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Launch this Deck
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                href={`/board?deck=${deck.id}`}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Launch on Board
+              </Link>
+            </div>
           </div>
         ))}
       </div>
@@ -110,7 +121,7 @@ export default function DecksPage() {
                 Curriculum Decks
               </h1>
               <p className="text-[11px] text-slate-500">
-                12 Structured Phonics Blending Decks
+                12 Structured Phonics Blending Decks + Saved Configurations
               </p>
             </div>
           </div>
@@ -125,10 +136,19 @@ export default function DecksPage() {
             Open Board
           </Link>
           <ThemeToggle />
+          <UserNav />
         </div>
       </header>
 
       <main className="flex-1 max-w-6xl mx-auto px-6 py-10 w-full">
+        {userDecks.length > 0 &&
+          renderSection(
+            'My Saved Decks',
+            'Your custom customized word lists and lesson deck configurations.',
+            userDecks,
+            true
+          )}
+
         {renderSection(
           '3-Column Decks',
           'Consonant - Vowel - Consonant structures, digraphs, initial/final blends, and vowel teams.',
