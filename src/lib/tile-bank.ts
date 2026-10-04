@@ -149,6 +149,131 @@ export function getPacksByCategory(category: TilePack['category']): TilePack[] {
   return SMART_TILE_PACKS.filter((p) => p.category === category);
 }
 
-export function getRecommendedPacksForRole(role: PhonicsRole): TilePack[] {
-  return SMART_TILE_PACKS.filter((p) => p.suggestedRole === role);
+export interface RoleMetadata {
+  label: string;
+  colorName: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  dotBg: string;
+  description: string;
+}
+
+export const ROLE_METADATA: Record<PhonicsRole, RoleMetadata> = {
+  consonant: {
+    label: 'Consonant',
+    colorName: 'Blue',
+    badgeBg: 'bg-blue-50 dark:bg-blue-950/60',
+    badgeText: 'text-blue-700 dark:text-blue-300',
+    badgeBorder: 'border-blue-200 dark:border-blue-800',
+    dotBg: 'bg-blue-500',
+    description: 'Single consonant onset or coda (Blue)',
+  },
+  short_vowel: {
+    label: 'Short Vowel',
+    colorName: 'Rose',
+    badgeBg: 'bg-rose-50 dark:bg-rose-950/60',
+    badgeText: 'text-rose-700 dark:text-rose-300',
+    badgeBorder: 'border-rose-200 dark:border-rose-800',
+    dotBg: 'bg-rose-500',
+    description: 'Closed syllable vowel sound (Rose)',
+  },
+  vowel_team: {
+    label: 'Vowel Team',
+    colorName: 'Red',
+    badgeBg: 'bg-red-50 dark:bg-red-950/60',
+    badgeText: 'text-red-700 dark:text-red-300',
+    badgeBorder: 'border-red-200 dark:border-red-800',
+    dotBg: 'bg-red-500',
+    description: 'Long vowel team or diphthong (Red)',
+  },
+  r_controlled: {
+    label: 'R-Controlled',
+    colorName: 'Amber',
+    badgeBg: 'bg-amber-50 dark:bg-amber-950/60',
+    badgeText: 'text-amber-800 dark:text-amber-300',
+    badgeBorder: 'border-amber-200 dark:border-amber-800',
+    dotBg: 'bg-amber-500',
+    description: 'Bossy-R vowel pattern (Amber)',
+  },
+  silent_e: {
+    label: 'Silent-E',
+    colorName: 'Purple',
+    badgeBg: 'bg-purple-50 dark:bg-purple-950/60',
+    badgeText: 'text-purple-700 dark:text-purple-300',
+    badgeBorder: 'border-purple-200 dark:border-purple-800',
+    dotBg: 'bg-purple-500',
+    description: 'Magic final-e marker (Purple)',
+  },
+  affix: {
+    label: 'Suffix / Affix',
+    colorName: 'Emerald',
+    badgeBg: 'bg-emerald-50 dark:bg-emerald-950/60',
+    badgeText: 'text-emerald-700 dark:text-emerald-300',
+    badgeBorder: 'border-emerald-200 dark:border-emerald-800',
+    dotBg: 'bg-emerald-500',
+    description: 'Ending inflection or syllable (Emerald)',
+  },
+  blend: {
+    label: 'Blend / Digraph',
+    colorName: 'Sky',
+    badgeBg: 'bg-sky-50 dark:bg-sky-950/60',
+    badgeText: 'text-sky-700 dark:text-sky-300',
+    badgeBorder: 'border-sky-200 dark:border-sky-800',
+    dotBg: 'bg-sky-500',
+    description: 'Consonant blend or digraph (Sky)',
+  },
+};
+
+export function detectPhonicsRole(tiles: string[], fallbackRole: PhonicsRole = 'consonant'): PhonicsRole {
+  if (!tiles || tiles.length === 0) return fallbackRole;
+
+  // If tiles match silent e
+  if (tiles.length === 1 && (tiles[0] === 'e' || tiles[0] === '_e')) {
+    return 'silent_e';
+  }
+
+  // If all tiles are basic short vowels
+  const shortVowels = new Set(['a', 'e', 'i', 'o', 'u']);
+  if (tiles.every((t) => shortVowels.has(t))) {
+    return 'short_vowel';
+  }
+
+  // If tiles are r-controlled
+  const rControlled = new Set(['ar', 'er', 'ir', 'or', 'ur']);
+  if (tiles.some((t) => rControlled.has(t))) {
+    return 'r_controlled';
+  }
+
+  // If tiles are vowel teams or diphthongs
+  const vowelTeams = new Set([
+    'ai', 'ay', 'ee', 'ea', 'oa', 'oe', 'ie', 'ue', 'ui',
+    'oi', 'oy', 'ou', 'ow', 'oo', 'ew', 'au', 'aw',
+  ]);
+  if (tiles.some((t) => vowelTeams.has(t))) {
+    return 'vowel_team';
+  }
+
+  // If tiles are affixes / suffixes (multi-character suffixes like -ing, -ed, -est, -ly, -ble)
+  const multiLetterAffixes = new Set([
+    'ed', 'ing', 'est', 'ly', 'ful', 'less',
+    'ble', 'cle', 'dle', 'fle', 'gle', 'ple', 'tle',
+  ]);
+  if (tiles.some((t) => multiLetterAffixes.has(t))) {
+    return 'affix';
+  }
+
+  // If tiles have blends or digraphs
+  const blends = new Set([
+    'sh', 'ch', 'th', 'wh', 'ph', 'ck', 'tch', 'dge', 'ng', 'nk', 'kn', 'wr',
+    'bl', 'cl', 'fl', 'gl', 'pl', 'sl',
+    'br', 'cr', 'dr', 'fr', 'gr', 'pr', 'tr',
+    'sc', 'sk', 'sm', 'sn', 'sp', 'st', 'sw',
+    'mp', 'nd', 'nt', 'lt', 'lk', 'pt', 'ft',
+  ]);
+  if (tiles.some((t) => blends.has(t))) {
+    return 'blend';
+  }
+
+  return 'consonant';
 }
