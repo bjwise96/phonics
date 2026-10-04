@@ -1,14 +1,17 @@
-// Elementary & primary grade dictionary lookup for real vs. nonsense word detection.
-// Uses a Set for O(1) instantaneous lookup on SmartBoard blending interactions.
+// Elementary & primary grade dictionary and phonotactic lookup for real vs. nonsense word detection.
+// Uses the expanded 10,000+ word lexicon, safety shield, and orthographic rule engine.
 
-import { ELEMENTARY_WORD_LIST } from './elementary-words';
+import { analyzeWord, cleanWord } from './lexicon/word-analyzer';
+import { WordOverrideMap, AnalyzedWord } from '@/types/phonics';
 
-const wordSet = new Set(ELEMENTARY_WORD_LIST.map((w) => w.toLowerCase().trim()));
-
-export function isRealWord(word: string): boolean {
+export function isRealWord(word: string, overrides?: WordOverrideMap): boolean {
   if (!word) return false;
-  // Clean hyphens/empty placeholders
-  const clean = word.toLowerCase().replace(/[^a-z]/g, '');
-  if (!clean) return false;
-  return wordSet.has(clean);
+  const analyzed = analyzeWord(word, overrides);
+  return analyzed.classification === 'real';
 }
+
+export function classifyWord(word: string, overrides?: WordOverrideMap): AnalyzedWord {
+  return analyzeWord(word, overrides);
+}
+
+export { cleanWord };

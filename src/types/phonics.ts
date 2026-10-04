@@ -15,16 +15,28 @@ export interface ColumnConfig {
   defaultLocked?: boolean;
 }
 
+export type WordClassification = 'real' | 'nonsense' | 'invalid';
+
+export type WordOverrideMap = Record<string, WordClassification>;
+
+export interface AnalyzedWord {
+  word: string;
+  classification: WordClassification;
+  reason?: string;
+  isOverride?: boolean;
+}
+
 export interface DeckPreset {
   id: string;
   title: string;
   subtitle: string;
   description: string;
-  columnCount: 3 | 4 | 5;
-  category: '3-column' | '4-column' | '5-column';
+  columnCount: number;
+  category: '2-column' | '3-column' | '4-column' | '5-column' | '6-column' | 'custom';
   columns: ColumnConfig[];
   exampleWords: string[];
   tags: string[];
+  wordOverrides?: WordOverrideMap;
 }
 
 export interface ActiveBoardState {
@@ -39,4 +51,5 @@ export interface ActiveBoardState {
     currentIndex: number;
     isLocked: boolean;
   }[];
+  wordOverrides?: WordOverrideMap;
 }

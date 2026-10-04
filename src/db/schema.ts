@@ -7,6 +7,7 @@ import {
   uuid,
   jsonb,
 } from 'drizzle-orm/pg-core';
+import type { WordOverrideMap } from '@/types/phonics';
 
 // Users table (mirrors Clerk identity)
 export const users = pgTable('users', {
@@ -24,11 +25,12 @@ export const decks = pgTable('decks', {
   title: text('title').notNull(),
   subtitle: text('subtitle'),
   description: text('description'),
-  columnCount: integer('column_count').notNull(), // 3, 4, or 5
+  columnCount: integer('column_count').notNull(), // 2, 3, 4, 5, or 6
   isPreset: boolean('is_preset').default(false).notNull(),
   isFavorite: boolean('is_favorite').default(false).notNull(),
   tags: jsonb('tags').$type<string[]>().default([]).notNull(),
   exampleWords: jsonb('example_words').$type<string[]>().default([]).notNull(),
+  wordOverrides: jsonb('word_overrides').$type<WordOverrideMap>().default({}).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
@@ -39,7 +41,7 @@ export const deckColumns = pgTable('deck_columns', {
   deckId: uuid('deck_id')
     .references(() => decks.id, { onDelete: 'cascade' })
     .notNull(),
-  position: integer('position').notNull(), // 0-indexed column order (0 to 4)
+  position: integer('position').notNull(), // 0-indexed column order (0 to 5)
   label: text('label').notNull(), // e.g. "Initial Onset", "Medial Vowel"
   role: text('role').notNull(), // 'consonant' | 'short_vowel' | 'vowel_team' | 'r_controlled' | 'silent_e' | 'affix' | 'blend'
   tiles: jsonb('tiles').$type<string[]>().notNull(), // ['b', 'c', 'f', ...]
