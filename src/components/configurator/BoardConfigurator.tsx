@@ -21,6 +21,7 @@ import Link from 'next/link';
 
 interface BoardConfiguratorProps {
   initialDeck?: DeckPreset;
+  loadFromActive?: boolean;
 }
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
@@ -44,7 +45,10 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   },
 ];
 
-export const BoardConfigurator: React.FC<BoardConfiguratorProps> = ({ initialDeck }) => {
+export const BoardConfigurator: React.FC<BoardConfiguratorProps> = ({
+  initialDeck,
+  loadFromActive = false,
+}) => {
   const router = useRouter();
 
   const [title, setTitle] = useState(initialDeck?.title || 'My Custom Phonics Deck');
@@ -65,6 +69,42 @@ export const BoardConfigurator: React.FC<BoardConfiguratorProps> = ({ initialDec
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [activeStoredDeck, setActiveStoredDeck] = useState<DeckPreset | null>(null);
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+
+  // Restore or prompt to restore active board session if present in localStorage
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem('inkwell_active_deck');
+      if (stored) {
+        const parsed: DeckPreset = JSON.parse(stored);
+        setActiveStoredDeck(parsed);
+        if (loadFromActive) {
+          setTitle(parsed.title || 'My Custom Phonics Deck');
+          setSubtitle(parsed.subtitle || 'Custom 2nd Grade Phonics Unit');
+          setDescription(parsed.description || '');
+          setColumns(parsed.columns || DEFAULT_COLUMNS);
+          setWordOverrides(parsed.wordOverrides || {});
+        } else if (!initialDeck) {
+          setShowRestorePrompt(true);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to read inkwell_active_deck:', e);
+    }
+  }, [loadFromActive, initialDeck]);
+
+  const handleRestoreActive = () => {
+    if (!activeStoredDeck) return;
+    setTitle(activeStoredDeck.title || 'My Custom Phonics Deck');
+    setSubtitle(activeStoredDeck.subtitle || 'Custom 2nd Grade Phonics Unit');
+    setDescription(activeStoredDeck.description || '');
+    setColumns(activeStoredDeck.columns || DEFAULT_COLUMNS);
+    setWordOverrides(activeStoredDeck.wordOverrides || {});
+    setShowRestorePrompt(false);
+  };
 
   // Column operations
   const handleAddColumn = () => {
@@ -174,6 +214,21 @@ export const BoardConfigurator: React.FC<BoardConfiguratorProps> = ({ initialDec
         setErrorMessage(res.error || 'Failed to save deck');
       } else {
         setSaveSuccess(true);
+        if (res.newDeckId) {
+          try {
+            const updated = {
+              id: res.newDeckId,
+              title,
+              subtitle,
+              description,
+              columnCount: columns.length,
+              columns,
+              wordOverrides,
+              tags: ['Custom'],
+            };
+            localStorage.setItem('inkwell_active_deck', JSON.stringify(updated));
+          } catch {}
+        }
         setTimeout(() => setSaveSuccess(false), 4000);
       }
     } catch (err: any) {
@@ -254,6 +309,39 @@ export const BoardConfigurator: React.FC<BoardConfiguratorProps> = ({ initialDec
             >
               Dismiss
             </button>
+          </div>
+        )}
+
+        {/* Restore active board session prompt banner */}
+        {showRestorePrompt && activeStoredDeck && (
+          <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <div>
+                <p className="text-xs sm:text-sm font-bold">
+                  Resume editing active board session?
+                </p>
+                <p className="text-xs text-indigo-700 dark:text-indigo-400">
+                  Found unsaved custom configuration: &ldquo;{activeStoredDeck.title}&rdquo; ({activeStoredDeck.columns?.length || 0} columns).
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => setShowRestorePrompt(false)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
+              >
+                Start Fresh
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreActive}
+                className="px-3.5 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-xs transition-all hover:scale-105 active:scale-95"
+              >
+                Resume Session
+              </button>
+            </div>
           </div>
         )}
 

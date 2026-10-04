@@ -10,6 +10,9 @@ import {
   Sparkles,
   SlidersHorizontal,
   Keyboard,
+  Save,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { ColumnConfig, DeckPreset, PhonicsRole, WordClassification, WordOverrideMap } from '@/types/phonics';
 import { getDefaultPreset } from '@/data/presets';
@@ -20,7 +23,7 @@ import { WordStatusBadge } from './WordStatusBadge';
 import { DeckSelectorModal } from './DeckSelectorModal';
 import { QuickConfigModal } from '../configurator/QuickConfigModal';
 import { classifyWord, cleanWord } from '@/lib/dictionary';
-import { updateWordOverrides } from '@/lib/actions/decks';
+import { updateWordOverrides, saveCustomDeck } from '@/lib/actions/decks';
 import { cn } from '@/lib/utils';
 
 interface ColumnState {
@@ -62,32 +65,40 @@ export function BlendingBoard({ initialPreset }: BlendingBoardProps) {
   const [isQuickConfigOpen, setIsQuickConfigOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [isSavingDeck, setIsSavingDeck] = useState(false);
+  const [saveDeckSuccess, setSaveDeckSuccess] = useState(false);
+
+  const isUnsavedCustom = Boolean(!activeDeck.id || activeDeck.id.startsWith('custom-'));
 
   // Check localStorage for customized deck on mount if launched from configurator
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.search.includes('custom=true')) {
-      try {
-        const stored = localStorage.getItem('inkwell_active_deck');
-        if (stored) {
-          const parsed: DeckPreset = JSON.parse(stored);
-          setActiveDeck(parsed);
-          setWordOverrides(parsed.wordOverrides || {});
-          setColumns(
-            parsed.columns.map((col) => ({
-              id: col.id,
-              label: col.label,
-              role: col.role,
-              tiles: col.tiles,
-              currentIndex: 0,
-              isLocked: Boolean(col.defaultLocked),
-            }))
-          );
+    if (typeof window !== 'undefined') {
+      const hasCustomFlag = window.location.search.includes('custom=true');
+      const hasDeckParam = window.location.search.includes('deck=');
+      if (hasCustomFlag || (!hasDeckParam && !initialPreset)) {
+        try {
+          const stored = localStorage.getItem('inkwell_active_deck');
+          if (stored) {
+            const parsed: DeckPreset = JSON.parse(stored);
+            setActiveDeck(parsed);
+            setWordOverrides(parsed.wordOverrides || {});
+            setColumns(
+              parsed.columns.map((col) => ({
+                id: col.id,
+                label: col.label,
+                role: col.role,
+                tiles: col.tiles,
+                currentIndex: 0,
+                isLocked: Boolean(col.defaultLocked),
+              }))
+            );
+          }
+        } catch (e) {
+          console.error('Failed to load custom deck from storage:', e);
         }
-      } catch (e) {
-        console.error('Failed to load custom deck from storage:', e);
       }
     }
-  }, []);
+  }, [initialPreset]);
 
   // Synchronize columns when active deck changes
   const handleLoadDeck = (newDeck: DeckPreset) => {
@@ -275,12 +286,74 @@ export function BlendingBoard({ initialPreset }: BlendingBoardProps) {
         isLocked: false,
       }))
     );
-    setActiveDeck((prev) => ({
-      ...prev,
+    const updatedDeck: DeckPreset = {
+      ...activeDeck,
       columnCount: newColumns.length,
       columns: newColumns,
       wordOverrides: newOverrides,
-    }));
+    };
+    setActiveDeck(updatedDeck);
+
+    // Persist to storage so refreshing or opening studio preserves this state
+    try {
+      localStorage.setItem('inkwell_active_deck', JSON.stringify(updatedDeck));
+    } catch (e) {
+      console.error('Failed to sync active deck to storage:', e);
+    }
+  };
+
+  // Save active deck permanently to database library
+  const handleSaveActiveDeckToLibrary = async (
+    customTitle?: string,
+    customColumns?: ColumnConfig[],
+    customOverrides?: WordOverrideMap
+  ) => {
+    setIsSavingDeck(true);
+    try {
+      const colsToSave = customColumns || columns.map((c) => ({
+        id: c.id,
+        label: c.label,
+        role: c.role,
+        tiles: c.tiles,
+        defaultLocked: c.isLocked,
+      }));
+      const overridesToSave = customOverrides || wordOverrides;
+      const titleToSave = customTitle || activeDeck.title;
+
+      const res = await saveCustomDeck({
+        id: activeDeck.id?.startsWith('custom-') ? undefined : activeDeck.id,
+        title: titleToSave,
+        subtitle: activeDeck.subtitle,
+        description: activeDeck.description,
+        columnCount: colsToSave.length,
+        columns: colsToSave,
+        wordOverrides: overridesToSave,
+        tags: ['Custom'],
+      });
+
+      if (res.success && res.newDeckId) {
+        const updatedDeck: DeckPreset = {
+          ...activeDeck,
+          id: res.newDeckId,
+          title: titleToSave,
+          columns: colsToSave,
+          wordOverrides: overridesToSave,
+        };
+        setActiveDeck(updatedDeck);
+        try {
+          localStorage.setItem('inkwell_active_deck', JSON.stringify(updatedDeck));
+        } catch {}
+        setSaveDeckSuccess(true);
+        setTimeout(() => setSaveDeckSuccess(false), 3000);
+        return { success: true, newDeckId: res.newDeckId };
+      } else {
+        return { success: false, error: res.error || 'Failed to save deck' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Error saving deck' };
+    } finally {
+      setIsSavingDeck(false);
+    }
   };
 
   // Reset all columns to initial index 0
@@ -391,6 +464,34 @@ export function BlendingBoard({ initialPreset }: BlendingBoardProps) {
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Customize</span>
           </button>
+
+          {/* 1-Click Save Deck to Library if Unsaved Custom */}
+          {isUnsavedCustom && (
+            <button
+              type="button"
+              onClick={() => handleSaveActiveDeckToLibrary()}
+              disabled={isSavingDeck}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              title="Save this custom configuration permanently to your teacher library"
+            >
+              {isSavingDeck ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="hidden sm:inline">Saving...</span>
+                </>
+              ) : saveDeckSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden sm:inline">Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden sm:inline">Save Deck</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Center: Real vs Nonsense Word Status with 1-Click Ban */}
@@ -548,19 +649,26 @@ export function BlendingBoard({ initialPreset }: BlendingBoardProps) {
       />
 
       {/* Quick Config In-Place Modal */}
-      <QuickConfigModal
-        isOpen={isQuickConfigOpen}
-        onClose={() => setIsQuickConfigOpen(false)}
-        columns={columns.map((c) => ({
-          id: c.id,
-          label: c.label,
-          role: c.role,
-          tiles: c.tiles,
-          defaultLocked: c.isLocked,
-        }))}
-        wordOverrides={wordOverrides}
-        onApplyConfig={handleApplyQuickConfig}
-      />
+      {isQuickConfigOpen && (
+        <QuickConfigModal
+          isOpen={isQuickConfigOpen}
+          onClose={() => setIsQuickConfigOpen(false)}
+          columns={columns.map((c) => ({
+            id: c.id,
+            label: c.label,
+            role: c.role,
+            tiles: c.tiles,
+            defaultLocked: c.isLocked,
+          }))}
+          wordOverrides={wordOverrides}
+          deckTitle={activeDeck.title}
+          deckId={activeDeck.id}
+          onApplyConfig={handleApplyQuickConfig}
+          onSaveToLibrary={(customTitle, customCols, customOverrides) =>
+            handleSaveActiveDeckToLibrary(customTitle, customCols, customOverrides)
+          }
+        />
+      )}
     </div>
   );
 }

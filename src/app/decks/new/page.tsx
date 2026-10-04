@@ -4,11 +4,11 @@ import { BoardConfigurator } from '@/components/configurator/BoardConfigurator';
 import { DeckPreset } from '@/types/phonics';
 
 interface PageProps {
-  searchParams: Promise<{ template?: string }>;
+  searchParams: Promise<{ template?: string; fromActive?: string }>;
 }
 
 export default async function NewDeckPage({ searchParams }: PageProps) {
-  const { template } = await searchParams;
+  const { template, fromActive } = await searchParams;
 
   let initialDeck: DeckPreset | undefined = undefined;
 
@@ -23,5 +23,10 @@ export default async function NewDeckPage({ searchParams }: PageProps) {
     }
   }
 
-  return <BoardConfigurator initialDeck={initialDeck} />;
+  return (
+    <BoardConfigurator
+      initialDeck={initialDeck}
+      loadFromActive={fromActive === 'true'}
+    />
+  );
 }
